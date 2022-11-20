@@ -7,6 +7,8 @@
 #include <new>
 #include <string>
 
+using namespace pmv;
+
 static int new_call_counter = 0;
 static int delete_call_counter = 0;
 static bool enable_allocator_counters = false;

@@ -5,6 +5,7 @@
 #include <type_traits>
 #include <utility>
 
+namespace pmv {
 namespace detail {
 
 // All these function pointers assume that the source and destination objects
@@ -215,6 +216,8 @@ struct get_vtable<Derived, Storage, true> {
 
 } // namespace detail
 
+#if __cplusplus < 201703L
+
 template<typename T>
 struct in_place_type_t {
     explicit in_place_type_t() = default;
@@ -222,6 +225,16 @@ struct in_place_type_t {
 
 template<typename T>
 constexpr in_place_type_t<T> in_place_type{};
+
+#else
+
+template<typename T>
+using in_place_type_t = std::in_place_type_t<T>;
+
+template<typename T>
+constexpr std::in_place_type_t<T> in_place_type{};
+
+#endif
 
 namespace detail {
 
@@ -383,3 +396,5 @@ template<typename Base,
 using polymorphic_value = detail::polymorphic_value_impl<Base,
                                                          std::max(SboSize, sizeof(void*)),
                                                          std::max(SboAlignment, alignof(void*))>;
+
+} // pmv
