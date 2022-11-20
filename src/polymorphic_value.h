@@ -238,14 +238,9 @@ constexpr std::in_place_type_t<T> in_place_type{};
 
 namespace detail {
 
-template<typename Base,
-         std::size_t SboSize = sizeof(void*) * 3,
-         std::size_t SboAlignment = alignof(void*)>
+template<typename Base, bool AllowAllocations, std::size_t SboSize, std::size_t SboAlignment>
 class polymorphic_value_impl {
     static_assert(std::is_polymorphic<Base>::value, "Class is not polymorphic");
-
-    template<typename, std::size_t, std::size_t>
-    friend class polymorphic_value_impl;
 
     using storage_t = detail::sbo_storage<SboSize, SboAlignment>;
 
@@ -257,6 +252,8 @@ public:
     polymorphic_value_impl(Derived&& d) noexcept(
         noexcept(m_storage.template build<std::decay_t<Derived>>(std::forward<Derived>(d))))
     {
+        static_assert(AllowAllocations || !detail::store_in_heap<Derived, SboSize, SboAlignment>,
+                      "Allocations are not allowed");
         m_vtable = detail::get_vtable<std::decay_t<Derived>, storage_t>::get();
         m_storage.template build<std::decay_t<Derived>>(std::forward<Derived>(d));
     }
@@ -267,6 +264,8 @@ public:
     explicit polymorphic_value_impl(in_place_type_t<Derived>, Args&&... args) noexcept(
         noexcept(m_storage.template build<std::decay_t<Derived>>(std::forward<Args>(args)...)))
     {
+        static_assert(AllowAllocations || !detail::store_in_heap<Derived, SboSize, SboAlignment>,
+                      "Allocations are not allowed");
         m_vtable = detail::get_vtable<std::decay_t<Derived>, storage_t>::get();
         m_storage.template build<std::decay_t<Derived>>(std::forward<Args>(args)...);
     }
@@ -318,6 +317,9 @@ public:
     template<typename Derived, std::enable_if_t<std::is_base_of<Base, Derived>::value, bool> = true>
     polymorphic_value_impl& operator=(Derived const& src)
     {
+        static_assert(AllowAllocations || !detail::store_in_heap<Derived, SboSize, SboAlignment>,
+                      "Allocations are not allowed");
+
         auto* new_vtable = detail::get_vtable<Derived, storage_t>::get();
 
         if (m_vtable == new_vtable) {
@@ -337,6 +339,9 @@ public:
                               bool> = true>
     polymorphic_value_impl& operator=(Derived&& src)
     {
+        static_assert(AllowAllocations || !detail::store_in_heap<Derived, SboSize, SboAlignment>,
+                      "Allocations are not allowed");
+
         auto* new_vtable = detail::get_vtable<Derived, storage_t>::get();
 
         if (m_vtable == new_vtable) {
@@ -391,9 +396,11 @@ private:
 } // detail
 
 template<typename Base,
+         bool AllowAllocations = true,
          std::size_t SboSize = sizeof(void*) * 3,
          std::size_t SboAlignment = alignof(void*)>
 using polymorphic_value = detail::polymorphic_value_impl<Base,
+                                                         AllowAllocations,
                                                          std::max(SboSize, sizeof(void*)),
                                                          std::max(SboAlignment, alignof(void*))>;
 
