@@ -1,0 +1,13 @@
+---
+BasedOnStyle: WebKit
+AlignAfterOpenBracket: Align
+NamespaceIndentation: None
+ColumnLimit: 100
+AlwaysBreakTemplateDeclarations: Yes
+SpaceAfterTemplateKeyword: No
+SpaceBeforeCpp11BracedList: No
+Cpp11BracedListStyle: Yes
+BinPackArguments: No
+BinPackParameters: No
+PackConstructorInitializers: CurrentLine
+BreakConstructorInitializers: BeforeComma
