@@ -1,3 +1,6 @@
+#ifndef POLYMORPHIC_VALUE_INCLUDE_H
+#define POLYMORPHIC_VALUE_INCLUDE_H
+
 #include <array>
 #include <cstddef>
 #include <iostream>
@@ -405,3 +408,5 @@ using polymorphic_value = detail::polymorphic_value_impl<Base,
                                                          std::max(SboAlignment, alignof(void*))>;
 
 } // pmv
+
+#endif // POLYMORPHIC_VALUE_INCLUDE_H
