@@ -248,8 +248,6 @@ class polymorphic_value_impl {
     using storage_t = detail::sbo_storage<SboSize, SboAlignment>;
 
 public:
-    polymorphic_value_impl() noexcept = default;
-
     template<typename Derived,
              std::enable_if_t<std::is_base_of<Base, std::decay_t<Derived>>::value, bool> = true>
     polymorphic_value_impl(Derived&& d) noexcept(
