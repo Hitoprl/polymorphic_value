@@ -150,13 +150,21 @@ template<std::size_t DataSize>
 int DerivedSpecialFunctions<DataSize>::destructor_ctor_counter = 0;
 
 using DerivedSmallSpecialFunctions = DerivedSpecialFunctions<1>;
+using DerivedSmallSpecialFunctions2 = DerivedSpecialFunctions<2>;
 using DerivedBigSpecialFunctions = DerivedSpecialFunctions<sizeof(void*) * 4>;
+using DerivedBigSpecialFunctions2 = DerivedSpecialFunctions<sizeof(void*) * 4 + 1>;
 
 #define EXPECT_SMALL_COUNTERS(a, b, c, d, e, f, g)                                                 \
     DerivedSmallSpecialFunctions::expect_counters(a, b, c, d, e, f, g, __LINE__)
 
 #define EXPECT_BIG_COUNTERS(a, b, c, d, e, f, g)                                                   \
     DerivedBigSpecialFunctions::expect_counters(a, b, c, d, e, f, g, __LINE__)
+
+#define EXPECT_SMALL2_COUNTERS(a, b, c, d, e, f, g)                                                \
+    DerivedSmallSpecialFunctions2::expect_counters(a, b, c, d, e, f, g, __LINE__)
+
+#define EXPECT_BIG2_COUNTERS(a, b, c, d, e, f, g)                                                  \
+    DerivedBigSpecialFunctions2::expect_counters(a, b, c, d, e, f, g, __LINE__)
 
 TEST(polymorphic_value, SmallObject)
 {
@@ -820,4 +828,316 @@ TEST(polymorphic_value, MoveAssignmentFromExternalBigToSmall)
     EXPECT_BIG_COUNTERS(1, 0, 0, 1, 0, 0, 2);
     EXPECT_EQ(new_call_counter, 1);
     EXPECT_EQ(delete_call_counter, 1);
+}
+
+TEST(polymorphic_value, CopyAssignmentFromSmallToSmall)
+{
+    new_call_counter = 0;
+    delete_call_counter = 0;
+    DerivedSmallSpecialFunctions::reset_counters();
+    DerivedSmallSpecialFunctions2::reset_counters();
+    {
+        enable_allocator_counters = true;
+        polymorphic_value<Base> poly1{in_place_type<DerivedSmallSpecialFunctions>};
+        enable_allocator_counters = false;
+        EXPECT_SMALL_COUNTERS(1, 0, 0, 0, 0, 0, 0);
+        EXPECT_EQ(new_call_counter, 0);
+        EXPECT_EQ(delete_call_counter, 0);
+        EXPECT_EQ(poly1->fn(), 4);
+
+        enable_allocator_counters = true;
+        polymorphic_value<Base> poly2{in_place_type<DerivedSmallSpecialFunctions2>};
+        enable_allocator_counters = false;
+        EXPECT_SMALL2_COUNTERS(1, 0, 0, 0, 0, 0, 0);
+        EXPECT_EQ(new_call_counter, 0);
+        EXPECT_EQ(delete_call_counter, 0);
+        EXPECT_EQ(poly2->fn(), 5);
+
+        enable_allocator_counters = true;
+        poly2 = poly1;
+        enable_allocator_counters = false;
+        EXPECT_SMALL_COUNTERS(1, 0, 1, 0, 0, 0, 0);
+        EXPECT_SMALL2_COUNTERS(1, 0, 0, 0, 0, 0, 1);
+        EXPECT_EQ(new_call_counter, 0);
+        EXPECT_EQ(delete_call_counter, 0);
+        EXPECT_EQ(poly1->fn(), 4);
+        EXPECT_EQ(poly2->fn(), 4);
+
+        enable_allocator_counters = true;
+    }
+    enable_allocator_counters = false;
+    EXPECT_SMALL_COUNTERS(1, 0, 1, 0, 0, 0, 2);
+    EXPECT_SMALL2_COUNTERS(1, 0, 0, 0, 0, 0, 1);
+    EXPECT_EQ(new_call_counter, 0);
+    EXPECT_EQ(delete_call_counter, 0);
+}
+
+TEST(polymorphic_value, CopyAssignmentFromBigToBig)
+{
+    new_call_counter = 0;
+    delete_call_counter = 0;
+    DerivedBigSpecialFunctions::reset_counters();
+    DerivedBigSpecialFunctions2::reset_counters();
+    {
+        enable_allocator_counters = true;
+        polymorphic_value<Base> poly1{in_place_type<DerivedBigSpecialFunctions>};
+        enable_allocator_counters = false;
+        EXPECT_BIG_COUNTERS(1, 0, 0, 0, 0, 0, 0);
+        EXPECT_EQ(new_call_counter, 1);
+        EXPECT_EQ(delete_call_counter, 0);
+        EXPECT_EQ(poly1->fn(), 35);
+
+        enable_allocator_counters = true;
+        polymorphic_value<Base> poly2{in_place_type<DerivedBigSpecialFunctions2>};
+        enable_allocator_counters = false;
+        EXPECT_BIG2_COUNTERS(1, 0, 0, 0, 0, 0, 0);
+        EXPECT_EQ(new_call_counter, 2);
+        EXPECT_EQ(delete_call_counter, 0);
+        EXPECT_EQ(poly2->fn(), 36);
+
+        enable_allocator_counters = true;
+        poly1 = poly2;
+        enable_allocator_counters = false;
+        EXPECT_BIG_COUNTERS(1, 0, 0, 0, 0, 0, 1);
+        EXPECT_BIG2_COUNTERS(1, 0, 1, 0, 0, 0, 0);
+        EXPECT_EQ(new_call_counter, 3);
+        EXPECT_EQ(delete_call_counter, 1);
+        EXPECT_EQ(poly1->fn(), 36);
+        EXPECT_EQ(poly2->fn(), 36);
+
+        enable_allocator_counters = true;
+    }
+    enable_allocator_counters = false;
+    EXPECT_BIG_COUNTERS(1, 0, 0, 0, 0, 0, 1);
+    EXPECT_BIG2_COUNTERS(1, 0, 1, 0, 0, 0, 2);
+    EXPECT_EQ(new_call_counter, 3);
+    EXPECT_EQ(delete_call_counter, 3);
+}
+
+TEST(polymorphic_value, MoveAssignmentFromSmallToSmall)
+{
+    new_call_counter = 0;
+    delete_call_counter = 0;
+    DerivedSmallSpecialFunctions::reset_counters();
+    DerivedSmallSpecialFunctions2::reset_counters();
+    {
+        enable_allocator_counters = true;
+        polymorphic_value<Base> poly1{in_place_type<DerivedSmallSpecialFunctions>};
+        enable_allocator_counters = false;
+        EXPECT_SMALL_COUNTERS(1, 0, 0, 0, 0, 0, 0);
+        EXPECT_EQ(new_call_counter, 0);
+        EXPECT_EQ(delete_call_counter, 0);
+        EXPECT_EQ(poly1->fn(), 4);
+
+        enable_allocator_counters = true;
+        polymorphic_value<Base> poly2{in_place_type<DerivedSmallSpecialFunctions2>};
+        enable_allocator_counters = false;
+        EXPECT_SMALL2_COUNTERS(1, 0, 0, 0, 0, 0, 0);
+        EXPECT_EQ(new_call_counter, 0);
+        EXPECT_EQ(delete_call_counter, 0);
+        EXPECT_EQ(poly2->fn(), 5);
+
+        enable_allocator_counters = true;
+        poly2 = std::move(poly1);
+        enable_allocator_counters = false;
+        EXPECT_SMALL_COUNTERS(1, 0, 0, 1, 0, 0, 0);
+        EXPECT_SMALL2_COUNTERS(1, 0, 0, 0, 0, 0, 1);
+        EXPECT_EQ(new_call_counter, 0);
+        EXPECT_EQ(delete_call_counter, 0);
+        EXPECT_EQ(poly1->fn(), 4);
+        EXPECT_EQ(poly2->fn(), 4);
+
+        enable_allocator_counters = true;
+    }
+    enable_allocator_counters = false;
+    EXPECT_SMALL_COUNTERS(1, 0, 0, 1, 0, 0, 2);
+    EXPECT_SMALL2_COUNTERS(1, 0, 0, 0, 0, 0, 1);
+    EXPECT_EQ(new_call_counter, 0);
+    EXPECT_EQ(delete_call_counter, 0);
+}
+
+TEST(polymorphic_value, MoveAssignmentFromBigToBig)
+{
+    new_call_counter = 0;
+    delete_call_counter = 0;
+    DerivedBigSpecialFunctions::reset_counters();
+    DerivedBigSpecialFunctions2::reset_counters();
+    {
+        enable_allocator_counters = true;
+        polymorphic_value<Base> poly1{in_place_type<DerivedBigSpecialFunctions>};
+        enable_allocator_counters = false;
+        EXPECT_BIG_COUNTERS(1, 0, 0, 0, 0, 0, 0);
+        EXPECT_EQ(new_call_counter, 1);
+        EXPECT_EQ(delete_call_counter, 0);
+        EXPECT_EQ(poly1->fn(), 35);
+
+        enable_allocator_counters = true;
+        polymorphic_value<Base> poly2{in_place_type<DerivedBigSpecialFunctions2>};
+        enable_allocator_counters = false;
+        EXPECT_BIG2_COUNTERS(1, 0, 0, 0, 0, 0, 0);
+        EXPECT_EQ(new_call_counter, 2);
+        EXPECT_EQ(delete_call_counter, 0);
+        EXPECT_EQ(poly2->fn(), 36);
+
+        enable_allocator_counters = true;
+        poly1 = std::move(poly2);
+        enable_allocator_counters = false;
+        EXPECT_BIG_COUNTERS(1, 0, 0, 0, 0, 0, 1);
+        // Move constructor ellided
+        EXPECT_BIG2_COUNTERS(1, 0, 0, 0, 0, 0, 0);
+        EXPECT_EQ(new_call_counter, 2);
+        EXPECT_EQ(delete_call_counter, 1);
+        EXPECT_EQ(poly1->fn(), 36);
+
+        enable_allocator_counters = true;
+    }
+    enable_allocator_counters = false;
+    EXPECT_BIG_COUNTERS(1, 0, 0, 0, 0, 0, 1);
+    EXPECT_BIG2_COUNTERS(1, 0, 0, 0, 0, 0, 1);
+    EXPECT_EQ(new_call_counter, 2);
+    EXPECT_EQ(delete_call_counter, 2);
+}
+
+TEST(polymorphic_value, CopyAssignmentFromExternalSmallToSmall)
+{
+    new_call_counter = 0;
+    delete_call_counter = 0;
+    DerivedSmallSpecialFunctions::reset_counters();
+    DerivedSmallSpecialFunctions2::reset_counters();
+    {
+        DerivedSmallSpecialFunctions obj;
+        EXPECT_SMALL_COUNTERS(1, 0, 0, 0, 0, 0, 0);
+
+        enable_allocator_counters = true;
+        polymorphic_value<Base> poly{in_place_type<DerivedSmallSpecialFunctions2>};
+        enable_allocator_counters = false;
+        EXPECT_SMALL2_COUNTERS(1, 0, 0, 0, 0, 0, 0);
+        EXPECT_EQ(new_call_counter, 0);
+        EXPECT_EQ(delete_call_counter, 0);
+        EXPECT_EQ(poly->fn(), 5);
+
+        enable_allocator_counters = true;
+        poly = obj;
+        enable_allocator_counters = false;
+        EXPECT_SMALL_COUNTERS(1, 0, 1, 0, 0, 0, 0);
+        EXPECT_SMALL2_COUNTERS(1, 0, 0, 0, 0, 0, 1);
+        EXPECT_EQ(new_call_counter, 0);
+        EXPECT_EQ(delete_call_counter, 0);
+        EXPECT_EQ(poly->fn(), 4);
+
+        enable_allocator_counters = true;
+    }
+    enable_allocator_counters = false;
+    EXPECT_SMALL_COUNTERS(1, 0, 1, 0, 0, 0, 2);
+    EXPECT_SMALL2_COUNTERS(1, 0, 0, 0, 0, 0, 1);
+    EXPECT_EQ(new_call_counter, 0);
+    EXPECT_EQ(delete_call_counter, 0);
+}
+
+TEST(polymorphic_value, CopyAssignmentFromExternalBigToBig)
+{
+    new_call_counter = 0;
+    delete_call_counter = 0;
+    DerivedBigSpecialFunctions::reset_counters();
+    DerivedBigSpecialFunctions2::reset_counters();
+    {
+        enable_allocator_counters = true;
+        polymorphic_value<Base> poly{in_place_type<DerivedBigSpecialFunctions>};
+        enable_allocator_counters = false;
+        EXPECT_BIG_COUNTERS(1, 0, 0, 0, 0, 0, 0);
+        EXPECT_EQ(new_call_counter, 1);
+        EXPECT_EQ(delete_call_counter, 0);
+        EXPECT_EQ(poly->fn(), 35);
+
+        DerivedBigSpecialFunctions2 obj;
+        EXPECT_BIG2_COUNTERS(1, 0, 0, 0, 0, 0, 0);
+
+        enable_allocator_counters = true;
+        poly = obj;
+        enable_allocator_counters = false;
+        EXPECT_BIG_COUNTERS(1, 0, 0, 0, 0, 0, 1);
+        EXPECT_BIG2_COUNTERS(1, 0, 1, 0, 0, 0, 0);
+        EXPECT_EQ(new_call_counter, 2);
+        EXPECT_EQ(delete_call_counter, 1);
+        EXPECT_EQ(poly->fn(), 36);
+
+        enable_allocator_counters = true;
+    }
+    enable_allocator_counters = false;
+    EXPECT_BIG_COUNTERS(1, 0, 0, 0, 0, 0, 1);
+    EXPECT_BIG2_COUNTERS(1, 0, 1, 0, 0, 0, 2);
+    EXPECT_EQ(new_call_counter, 2);
+    EXPECT_EQ(delete_call_counter, 2);
+}
+
+TEST(polymorphic_value, MoveAssignmentFromExternalSmallToSmall)
+{
+    new_call_counter = 0;
+    delete_call_counter = 0;
+    DerivedSmallSpecialFunctions::reset_counters();
+    DerivedSmallSpecialFunctions2::reset_counters();
+    {
+        DerivedSmallSpecialFunctions obj;
+        EXPECT_SMALL_COUNTERS(1, 0, 0, 0, 0, 0, 0);
+
+        enable_allocator_counters = true;
+        polymorphic_value<Base> poly{in_place_type<DerivedSmallSpecialFunctions2>};
+        enable_allocator_counters = false;
+        EXPECT_SMALL2_COUNTERS(1, 0, 0, 0, 0, 0, 0);
+        EXPECT_EQ(new_call_counter, 0);
+        EXPECT_EQ(delete_call_counter, 0);
+        EXPECT_EQ(poly->fn(), 5);
+
+        enable_allocator_counters = true;
+        poly = std::move(obj);
+        enable_allocator_counters = false;
+        EXPECT_SMALL_COUNTERS(1, 0, 0, 1, 0, 0, 0);
+        EXPECT_SMALL2_COUNTERS(1, 0, 0, 0, 0, 0, 1);
+        EXPECT_EQ(new_call_counter, 0);
+        EXPECT_EQ(delete_call_counter, 0);
+        EXPECT_EQ(poly->fn(), 4);
+
+        enable_allocator_counters = true;
+    }
+    enable_allocator_counters = false;
+    EXPECT_SMALL_COUNTERS(1, 0, 0, 1, 0, 0, 2);
+    EXPECT_SMALL2_COUNTERS(1, 0, 0, 0, 0, 0, 1);
+    EXPECT_EQ(new_call_counter, 0);
+    EXPECT_EQ(delete_call_counter, 0);
+}
+
+TEST(polymorphic_value, MoveAssignmentFromExternalBigToBig)
+{
+    new_call_counter = 0;
+    delete_call_counter = 0;
+    DerivedBigSpecialFunctions::reset_counters();
+    DerivedBigSpecialFunctions2::reset_counters();
+    {
+        enable_allocator_counters = true;
+        polymorphic_value<Base> poly{in_place_type<DerivedBigSpecialFunctions>};
+        enable_allocator_counters = false;
+        EXPECT_BIG_COUNTERS(1, 0, 0, 0, 0, 0, 0);
+        EXPECT_EQ(new_call_counter, 1);
+        EXPECT_EQ(delete_call_counter, 0);
+        EXPECT_EQ(poly->fn(), 35);
+
+        DerivedBigSpecialFunctions2 obj;
+        EXPECT_BIG2_COUNTERS(1, 0, 0, 0, 0, 0, 0);
+
+        enable_allocator_counters = true;
+        poly = std::move(obj);
+        enable_allocator_counters = false;
+        EXPECT_BIG_COUNTERS(1, 0, 0, 0, 0, 0, 1);
+        EXPECT_BIG2_COUNTERS(1, 0, 0, 1, 0, 0, 0);
+        EXPECT_EQ(new_call_counter, 2);
+        EXPECT_EQ(delete_call_counter, 1);
+        EXPECT_EQ(poly->fn(), 36);
+
+        enable_allocator_counters = true;
+    }
+    enable_allocator_counters = false;
+    EXPECT_BIG_COUNTERS(1, 0, 0, 0, 0, 0, 1);
+    EXPECT_BIG2_COUNTERS(1, 0, 0, 1, 0, 0, 2);
+    EXPECT_EQ(new_call_counter, 2);
+    EXPECT_EQ(delete_call_counter, 2);
 }
