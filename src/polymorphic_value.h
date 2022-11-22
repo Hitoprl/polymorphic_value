@@ -356,6 +356,18 @@ public:
         return *this;
     }
 
+    template<typename Derived, typename... Args>
+    std::enable_if_t<std::is_base_of<Base, std::decay_t<Derived>>::value>
+    emplace(Args&&... args) noexcept(
+        noexcept(m_storage.template build<std::decay_t<Derived>>(std::forward<Args>(args)...)))
+    {
+        static_assert(AllowAllocations || !detail::store_in_heap<Derived, SboSize, SboAlignment>,
+                      "Allocations are not allowed");
+        m_vtable->destroy(&m_storage);
+        m_vtable = detail::get_vtable<std::decay_t<Derived>, storage_t>::get();
+        m_storage.template build<std::decay_t<Derived>>(std::forward<Args>(args)...);
+    }
+
     ~polymorphic_value_impl() { m_vtable->destroy(&m_storage); }
 
     Base* operator->() noexcept { return get(); }
