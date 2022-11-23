@@ -8,6 +8,13 @@
 #include <type_traits>
 #include <utility>
 
+#ifdef __cpp_rtti
+#include <stdexcept>
+#define POLYMORPHIC_VALUE_RTTI_SUPPORTED true
+#else
+#define POLYMORPHIC_VALUE_RTTI_SUPPORTED false
+#endif
+
 namespace pmv {
 namespace detail {
 
@@ -239,6 +246,12 @@ constexpr std::in_place_type_t<T> in_place_type{};
 
 #endif
 
+#if POLYMORPHIC_VALUE_RTTI_SUPPORTED
+struct bad_polymorphic_value : public std::logic_error {
+    using logic_error::logic_error;
+};
+#endif
+
 namespace detail {
 
 template<typename Base, bool AllowAllocations, std::size_t SboSize, std::size_t SboAlignment>
@@ -250,11 +263,16 @@ class polymorphic_value_impl {
 public:
     template<typename Derived,
              std::enable_if_t<std::is_base_of<Base, std::decay_t<Derived>>::value, bool> = true>
-    polymorphic_value_impl(Derived&& d) noexcept(
-        noexcept(m_storage.template build<std::decay_t<Derived>>(std::forward<Derived>(d))))
+    polymorphic_value_impl(Derived&& d) noexcept(!POLYMORPHIC_VALUE_RTTI_SUPPORTED&& noexcept(
+        m_storage.template build<std::decay_t<Derived>>(std::forward<Derived>(d))))
     {
         static_assert(AllowAllocations || !detail::store_in_heap<Derived, SboSize, SboAlignment>,
                       "Allocations are not allowed");
+#if POLYMORPHIC_VALUE_RTTI_SUPPORTED
+        if (typeid(std::decay_t<Derived>) != typeid(d)) {
+            throw bad_polymorphic_value{"Value would slice"};
+        }
+#endif
         m_vtable = detail::get_vtable<std::decay_t<Derived>, storage_t>::get();
         m_storage.template build<std::decay_t<Derived>>(std::forward<Derived>(d));
     }
@@ -320,7 +338,11 @@ public:
     {
         static_assert(AllowAllocations || !detail::store_in_heap<Derived, SboSize, SboAlignment>,
                       "Allocations are not allowed");
-
+#if POLYMORPHIC_VALUE_RTTI_SUPPORTED
+        if (typeid(std::decay_t<Derived>) != typeid(src)) {
+            throw bad_polymorphic_value{"Value would slice"};
+        }
+#endif
         auto* new_vtable = detail::get_vtable<Derived, storage_t>::get();
 
         if (m_vtable == new_vtable) {
@@ -342,7 +364,11 @@ public:
     {
         static_assert(AllowAllocations || !detail::store_in_heap<Derived, SboSize, SboAlignment>,
                       "Allocations are not allowed");
-
+#if POLYMORPHIC_VALUE_RTTI_SUPPORTED
+        if (typeid(std::decay_t<Derived>) != typeid(src)) {
+            throw bad_polymorphic_value{"Value would slice"};
+        }
+#endif
         auto* new_vtable = detail::get_vtable<Derived, storage_t>::get();
 
         if (m_vtable == new_vtable) {
